@@ -3,7 +3,7 @@
 ## Install pre-requisites
 
 ``` sh
-pip install gspread oauth2client tkinter
+pip3 install gspread oauth2client tkinter
 ```
 
 ## Create Google API
