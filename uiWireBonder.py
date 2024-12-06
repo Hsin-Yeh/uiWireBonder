@@ -21,7 +21,7 @@ class ModuleTrackingGUI:
                 'https://www.googleapis.com/auth/drive']
         creds = ServiceAccountCredentials.from_json_keyfile_name('credentials.json', scope)
         self.client = gspread.authorize(creds)
-        self.sheet = self.client.open('test').sheet1
+        self.sheet = self.client.open('uiWireBonder').sheet1
 
         # Get parameters from first row
         self.parameters = self.sheet.row_values(1)[2:]
@@ -53,11 +53,6 @@ class ModuleTrackingGUI:
                   command=self.show_add_module_dialog).pack(pady=5)
         ttk.Button(self.left_frame, text="Clear Module",
                   command=self.clear_module).pack(pady=5)
-        ttk.Button(self.left_frame, text="Submit All to Sheet",
-                  command=self.submit_all_to_sheet).pack(pady=5)
-        ttk.Button(self.left_frame, text="Read All from Sheet",
-                   command=self.read_all_from_sheet).pack(pady=5)
-
         # Add TIDC logo at the bottom of left_frame
         try:
             logo_image = Image.open('tidc_icon.png')
@@ -99,11 +94,22 @@ class ModuleTrackingGUI:
         self.history_listbox.pack(pady=5, fill='x')
         self.history_listbox.bind('<<TreeviewSelect>>', self.show_history_details)
 
-        # Status Label
+        # Google Sheets Operations Frame
+        self.sheets_frame = ttk.LabelFrame(self.main_frame, text="Google Sheets Operations")
+        self.sheets_frame.grid(row=2, column=0, columnspan=3, padx=5, pady=5, sticky='ew')
+
+        # Add Google Sheets operation buttons
+        ttk.Button(self.sheets_frame, text="Submit All to Sheet",
+                  command=self.submit_all_to_sheet).pack(side='left', padx=5, pady=5)
+        ttk.Button(self.sheets_frame, text="Read All from Sheet",
+                  command=self.read_all_from_sheet).pack(side='left', padx=5, pady=5)
+
+        # Move status label to row 3 and ensure it's visible
         self.status_label = ttk.Label(self.main_frame, text="")
-        self.status_label.grid(row=1, column=0, columnspan=3, pady=5)
+        self.status_label.grid(row=3, column=0, columnspan=3, pady=5)
 
         self.param_entries = {}
+
 
     def update_timestamps(self):
         module_id = self.module_id_var.get()
@@ -378,13 +384,16 @@ class ModuleTrackingGUI:
                 messagebox.showinfo("Info", "No data found in sheet")
                 return
 
+            # Clear existing data
+            self.module_params = {}
+
             # Skip header row
             for row in sheet_data[1:]:
                 timestamp = row[0]
                 module_id = row[1]
                 parameters = row[2:]
 
-                # Create new module if it doesn't exist
+                # Create or update module
                 if module_id not in self.module_params:
                     self.module_params[module_id] = {
                         'parameters': parameters,
@@ -392,7 +401,6 @@ class ModuleTrackingGUI:
                         'modified': timestamp,
                         'history': []
                     }
-                # Update existing module
                 else:
                     # Add to history if parameters are different
                     if parameters != self.module_params[module_id]['parameters']:
@@ -409,12 +417,16 @@ class ModuleTrackingGUI:
 
             # Update UI
             self.update_module_list()
+            self.module_id_combo.set('')  # Clear current selection
+            self.clear_param_frame()
+            self.created_label.config(text="Created: ")
+            self.modified_label.config(text="Modified: ")
             self.update_history_display()
+            self.save_button.config(state='disabled')
             self.status_label.config(text="Data successfully loaded from sheet")
 
         except Exception as e:
             messagebox.showerror("Error", f"Failed to read from sheet: {str(e)}")
-
 
 if __name__ == "__main__":
     root = tk.Tk()
